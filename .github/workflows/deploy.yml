@@ -1,51 +1,37 @@
-name: Deploy
+name: Main CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   build:
-    name: Build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x]
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Setup Node
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
 
-      - name: Install dependencies
-        uses: bahmutov/npm-install@v1
+      - run: mkdir -p screens logs
+      - run: sudo apt-get install xvfb
 
-      - name: Build project
-        run: npm run build
+      - name: Run Nightwatch component tests
+        run: xvfb-run --auto-servernum npm run test:components
 
-      - name: Upload production-ready build files
-        uses: actions/upload-artifact@v2
-        with:
-          name: production-files
-          path: ./dist
+      - name: Build and start application
+        run: npm start &
 
-  deploy:
-    name: Deploy
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+      - name: Wait until it starts
+        run: sleep 30s
 
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: production-files
-          path: ./dist
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+      - name: Run Nightwatch end-to-end tests
+        run: xvfb-run --auto-servernum npm run test:e2e
