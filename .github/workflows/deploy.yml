@@ -8,30 +8,48 @@ on:
 
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [14.x, 16.x, 18.x]
+        node-version: [16.x, 18.x]
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-      - run: npm ci
 
-      - run: mkdir -p screens logs
-      - run: sudo apt-get install xvfb
+      - name: Install dependencies
+        run: yarn
 
-      - name: Run Nightwatch component tests
-        run: xvfb-run --auto-servernum npm run test:components
+      - name: Build project
+        run: yarn build
 
-      - name: Build and start application
-        run: npm start &
+      - name: Upload production-ready build files
+        uses: actions/upload-artifact@v2
+        with:
+          name: production-files
+          path: ./dist
 
-      - name: Wait until it starts
-        run: sleep 30s
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
 
-      - name: Run Nightwatch end-to-end tests
-        run: xvfb-run --auto-servernum npm run test:e2e
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: production-files
+          path: ./dist
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
