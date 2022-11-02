@@ -1,16 +1,51 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import reactLogo from "./assets/react.svg";
 import "./App.css";
+import axios from "axios";
+import Post from "./Post";
+
+export interface IPost {
+  id: number;
+  date: string;
+  title: { rendered: string };
+  content: { rendered: string };
+  excerpt: { rendered: string };
+  featured_media: number;
+}
+
+const defaultPosts: IPost[] = [];
 
 function App() {
-  const [count, setCount] = useState(0);
+  const [posts, setPosts] = useState<IPost[]>(defaultPosts);
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+  const [count, setCount] = useState<number>(0);
+
+  useEffect(() => {
+    axios
+      .get<IPost[]>("https://sitology.ir/wp-json/wp/v2/posts", {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+      .then((response) => {
+        setPosts(response.data);
+        setLoading(false);
+      })
+      .catch((ex) => {
+        const error =
+          ex.response.status === 404
+            ? "Resource Not found"
+            : "An unexpected error has occurred";
+        setError(error);
+        setLoading(false);
+      });
+  }, []);
 
   return (
     <div className="App">
       <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="wordpress-site/vite.svg" className="logo" alt="Vite logo" />
-        </a>
         <a href="https://reactjs.org" target="_blank">
           <img src={reactLogo} className="logo react" alt="React logo" />
         </a>
@@ -18,15 +53,18 @@ function App() {
       <h1>Vite + React</h1>
       <div className="card">
         <button onClick={() => setCount((count) => count + 1)}>
-          My count is {count}
+          count is {count}
         </button>
         <p>
           Edit <code>src/App.tsx</code> and save to test HMR
         </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <div className="posts">
+        {posts.map((post) => (
+          <Post key={post.id} post={post} />
+        ))}
+      </div>
+      {error && <p className="error">{error}</p>}
     </div>
   );
 }

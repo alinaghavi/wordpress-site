@@ -39,3 +39,13 @@
 .read-the-docs {
   color: #888;
 }
+
+.posts {
+  margin: 0px auto;
+  width: 800px;
+  text-align: left;
+}
+
+.error {
+  color: red;
+}
